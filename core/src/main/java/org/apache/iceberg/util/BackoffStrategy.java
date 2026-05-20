@@ -57,4 +57,17 @@ public interface BackoffStrategy {
    * @param properties the properties the strategy was selected from
    */
   default void initialize(Map<String, String> properties) {}
+
+  /**
+   * Notifies the strategy that a task completed successfully.
+   *
+   * <p>Invoked by {@link Tasks} once per successful task execution, including first-try successes
+   * with no prior failures. It is not invoked when a task gives up after exhausting retries.
+   *
+   * <p>The default implementation is a no-op so existing strategies do not need to opt in. Adaptive
+   * strategies such as additive-increase / multiplicative-decrease use this signal to shrink the
+   * cached wait when the system has been healthy. Implementations must be thread-safe: parallel
+   * {@link Tasks} workers may invoke this concurrently on a shared instance.
+   */
+  default void onSuccess() {}
 }

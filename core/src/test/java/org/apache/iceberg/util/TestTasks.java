@@ -19,6 +19,7 @@
 package org.apache.iceberg.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Collections;
 import java.util.List;
@@ -157,6 +158,74 @@ public class TestTasks {
   }
 
   @Test
+  public void tasksInvokesOnSuccessAfterSuccessfulTask() {
+    RecordingStrategy recording = new RecordingStrategy();
+
+    Tasks.foreach(IntStream.range(0, 1)).backoffStrategy(recording).run(x -> {});
+
+    assertThat(recording.onSuccessCalls.get()).isOne();
+    assertThat(recording.computeBackoffCalls).isEmpty();
+  }
+
+  @Test
+  public void tasksInvokesOnSuccessAfterRecoveredRetry() {
+    RecordingStrategy recording = new RecordingStrategy();
+    Counter counter = new DefaultMetricsContext().counter("counter");
+
+    Tasks.foreach(IntStream.range(0, 1))
+        .countAttempts(counter)
+        .retry(3)
+        .backoffStrategy(recording)
+        .onlyRetryOn(RuntimeException.class)
+        .run(
+            x -> {
+              if (counter.value() == 1) {
+                throw new RuntimeException("first attempt fails");
+              }
+            });
+
+    assertThat(recording.computeBackoffCalls).containsExactly(1);
+    assertThat(recording.onSuccessCalls.get()).isOne();
+  }
+
+  @Test
+  public void tasksDoesNotInvokeOnSuccessWhenTaskExhaustsRetries() {
+    RecordingStrategy recording = new RecordingStrategy();
+
+    assertThatThrownBy(
+            () ->
+                Tasks.foreach(IntStream.range(0, 1))
+                    .retry(2)
+                    .backoffStrategy(recording)
+                    .onlyRetryOn(RuntimeException.class)
+                    .run(
+                        x -> {
+                          throw new RuntimeException("always fails");
+                        }))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("always fails");
+
+    assertThat(recording.computeBackoffCalls).containsExactly(1, 2);
+    assertThat(recording.onSuccessCalls.get()).isZero();
+  }
+
+  @Test
+  public void tasksInvokesOnSuccessOncePerItemInParallel() throws InterruptedException {
+    int items = 20;
+    RecordingStrategy recording = new RecordingStrategy();
+    ExecutorService svc = Executors.newFixedThreadPool(4);
+    try {
+      Tasks.range(items).executeWith(svc).backoffStrategy(recording).run(i -> {});
+    } finally {
+      svc.shutdownNow();
+      svc.awaitTermination(5, TimeUnit.SECONDS);
+    }
+
+    assertThat(recording.onSuccessCalls.get()).isEqualTo(items);
+    assertThat(recording.computeBackoffCalls).isEmpty();
+  }
+
+  @Test
   public void backoffStrategyReturnValueDrivesSleepDuration() {
     long perRetryMs = 150L;
     int retries = 3;
@@ -177,5 +246,22 @@ public class TestTasks {
     long elapsedMs = System.currentTimeMillis() - startMs;
 
     assertThat(elapsedMs).isGreaterThanOrEqualTo((long) (retries * perRetryMs * 0.9));
+  }
+
+  private static class RecordingStrategy implements BackoffStrategy {
+    private final List<Integer> computeBackoffCalls =
+        Collections.synchronizedList(Lists.newArrayList());
+    private final AtomicInteger onSuccessCalls = new AtomicInteger();
+
+    @Override
+    public long computeBackoff(int attempt) {
+      computeBackoffCalls.add(attempt);
+      return 0L;
+    }
+
+    @Override
+    public void onSuccess() {
+      onSuccessCalls.incrementAndGet();
+    }
   }
 }

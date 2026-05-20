@@ -140,6 +140,21 @@ public class TestBackoffStrategies {
   }
 
   @Test
+  public void defaultOnSuccessIsNoOpForStrategiesThatDoNotOverride() {
+    // ExponentialBackoffStrategy does not override onSuccess(); the default no-op must be safe
+    // to call and must not perturb subsequent computeBackoff results.
+    ExponentialBackoffStrategy backoff = new ExponentialBackoffStrategy(100, 1000, 2.0);
+
+    backoff.onSuccess();
+    backoff.onSuccess();
+
+    long expectedBase = (long) Math.min(100 * Math.pow(2.0, 0), 1000.0);
+    long jitterBound = Math.max(1, (long) (expectedBase * 0.1));
+    long wait = backoff.computeBackoff(1);
+    assertThat(wait).isGreaterThanOrEqualTo(expectedBase).isLessThan(expectedBase + jitterBound);
+  }
+
+  @Test
   public void fromWithDefaultsAcceptsNullProperties() {
     BackoffStrategy strategy = BackoffStrategies.from(null, 100, 1000, 2.0);
 

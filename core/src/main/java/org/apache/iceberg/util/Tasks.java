@@ -427,6 +427,7 @@ public class Tasks {
 
         try {
           task.run(item);
+          backoffStrategy.onSuccess();
           break;
 
         } catch (Exception e) {
