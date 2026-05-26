@@ -32,10 +32,10 @@ import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hive.HiveCatalog;
-import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.spark.CatalogTestBase;
+import org.apache.iceberg.spark.SharedMetastore;
 import org.apache.iceberg.spark.SparkReadOptions;
 import org.apache.iceberg.spark.TestBase;
 import org.apache.spark.sql.Dataset;
@@ -53,9 +53,8 @@ public class TestAggregatePushDown extends CatalogTestBase {
 
   @BeforeAll
   public static void startMetastoreAndSpark() {
-    TestBase.metastore = new TestHiveMetastore();
-    metastore.start();
-    TestBase.hiveConf = metastore.hiveConf();
+    TestBase.metastore = SharedMetastore.get();
+    TestBase.hiveConf = SharedMetastore.hiveConf();
 
     TestBase.spark.close();
 

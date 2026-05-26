@@ -73,6 +73,7 @@ import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.relocated.com.google.common.collect.Sets;
 import org.apache.iceberg.spark.ImmutableParquetBatchReadConf;
 import org.apache.iceberg.spark.ParquetBatchReadConf;
+import org.apache.iceberg.spark.SharedMetastore;
 import org.apache.iceberg.spark.SparkSchemaUtil;
 import org.apache.iceberg.spark.SparkStructLike;
 import org.apache.iceberg.spark.TestBase;
@@ -127,8 +128,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
   @BeforeAll
   public static void startMetastoreAndSpark() {
-    metastore = new TestHiveMetastore();
-    metastore.start();
+    metastore = SharedMetastore.get();
     HiveConf hiveConf = metastore.hiveConf();
 
     spark =
@@ -157,8 +157,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
   @AfterAll
   public static void stopMetastoreAndSpark() throws Exception {
     catalog = null;
-    metastore.stop();
-    metastore = null;
+    SharedMetastore.reset();
     spark.stop();
     spark = null;
   }

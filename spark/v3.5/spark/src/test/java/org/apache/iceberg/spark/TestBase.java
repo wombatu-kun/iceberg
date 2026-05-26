@@ -75,9 +75,8 @@ public abstract class TestBase extends SparkTestHelperBase {
 
   @BeforeAll
   public static void startMetastoreAndSpark() {
-    TestBase.metastore = new TestHiveMetastore();
-    metastore.start();
-    TestBase.hiveConf = metastore.hiveConf();
+    TestBase.metastore = SharedMetastore.get();
+    TestBase.hiveConf = SharedMetastore.hiveConf();
 
     TestBase.spark =
         SparkSession.builder()
@@ -107,10 +106,9 @@ public abstract class TestBase extends SparkTestHelperBase {
   @AfterAll
   public static void stopMetastoreAndSpark() throws Exception {
     TestBase.catalog = null;
-    if (metastore != null) {
-      metastore.stop();
-      TestBase.metastore = null;
-    }
+    // The metastore is shared across all test classes in this JVM; reset its state instead of
+    // stopping it (it is stopped once at JVM exit via SharedMetastore's shutdown hook).
+    SharedMetastore.reset();
     if (spark != null) {
       spark.stop();
       TestBase.spark = null;

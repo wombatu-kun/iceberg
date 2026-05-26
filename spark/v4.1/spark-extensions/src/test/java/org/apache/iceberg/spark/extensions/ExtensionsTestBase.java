@@ -34,12 +34,12 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.hive.HiveCatalog;
-import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.spark.CatalogTestBase;
+import org.apache.iceberg.spark.SharedMetastore;
 import org.apache.iceberg.spark.TestBase;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SparkSession;
@@ -52,9 +52,8 @@ public abstract class ExtensionsTestBase extends CatalogTestBase {
 
   @BeforeAll
   public static void startMetastoreAndSpark() {
-    TestBase.metastore = new TestHiveMetastore();
-    metastore.start();
-    TestBase.hiveConf = metastore.hiveConf();
+    TestBase.metastore = SharedMetastore.get();
+    TestBase.hiveConf = SharedMetastore.hiveConf();
 
     TestBase.spark.stop();
 

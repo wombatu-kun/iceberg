@@ -63,6 +63,7 @@ import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.relocated.com.google.common.collect.Maps;
+import org.apache.iceberg.spark.SharedMetastore;
 import org.apache.iceberg.spark.SparkValueConverter;
 import org.apache.iceberg.spark.TestBase;
 import org.apache.iceberg.types.Types;
@@ -175,8 +176,7 @@ public class TestSparkReaderWithBloomFilter {
 
   @BeforeAll
   public static void startMetastoreAndSpark() {
-    metastore = new TestHiveMetastore();
-    metastore.start();
+    metastore = SharedMetastore.get();
     HiveConf hiveConf = metastore.hiveConf();
 
     spark =
@@ -202,8 +202,7 @@ public class TestSparkReaderWithBloomFilter {
   @AfterAll
   public static void stopMetastoreAndSpark() throws Exception {
     catalog = null;
-    metastore.stop();
-    metastore = null;
+    SharedMetastore.reset();
     spark.stop();
     spark = null;
   }
